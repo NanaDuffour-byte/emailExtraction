@@ -1,5 +1,9 @@
 import imaplib
 import email 
+import webbrowser
+import re
+import time # to allow time before it closes
+from playwright.sync_api import sync_playwright 
 from email.header import decode_header
 
 def safe_decode(body, encoding='utf-8'):
@@ -11,6 +15,16 @@ def safe_decode(body, encoding='utf-8'):
         except UnicodeDecodeError:
             return body.decode('utf-8', errors='ignore')  
 
+# this function that extracts only the activation link
+def extract_activation_link(text):
+    url_pattern = r"https?://[^\s<>\"']+"  
+    urls = re.findall(url_pattern, text)
+    
+    for url in urls:
+        if "/activate/" in url:  # this filters via /activate/ to get the activation link  in isolation
+            return url
+    return None
+
 # Gmail credentials
 username = "mdtester7@gmail.com"
 password = "anbd ycny svmt lsul"  
@@ -20,13 +34,14 @@ server = "imap.gmail.com"
 mail = imaplib.IMAP4_SSL(server)
 
 try:
-    # Log in to Gmail
+    # logging in to Gmail
     mail.login(username, password)
     
-   
-    mail.select("inbox")
+    # Select from inbox or spam
+    #mail.select("inbox")
+    mail.select("[Gmail]/Spam")
 
-    status, messages = mail.search(None, '(SUBJECT "Aktivierung Ihrer digitalen Gesundheitsanwendung" FROM "n.duffour@minddistrict.com")')
+    status, messages = mail.search(None, '(SUBJECT "Aktivierung Ihrer digitalen Gesundheitsanwendung" FROM "do-not-reply@minddistrict.dev")')
 
     email_ids = messages[0].split()
 
@@ -46,27 +61,47 @@ try:
                 # Get the sender's email
                 from_ = msg.get("From")
                 
-                # Print subject and sender
                 print(f"Subject: {subject}")
                 print(f"From: {from_}")
                 
+                email_body = ""
+
                 # Check if the email is multipart (i.e., has both plain text and HTML parts)
                 if msg.is_multipart():
                     for part in msg.walk():
-                        content_type = part.get_content_type()  # Get the content type of each part
-                        content_disposition = str(part.get("Content-Disposition"))  # Check for attachments
-                        
-                        # If there's no attachment, and the content type is plain text
-                        if "attachment" not in content_disposition:
-                            if content_type == "text/plain":
-                                # Decode the body of the email safely
-                                body = part.get_payload(decode=True)
-                                print(f"Body: {safe_decode(body)}")
+                        content_type = part.get_content_type()
+                        content_disposition = str(part.get("Content-Disposition"))
+
+                        # Extract text if it is not an attachment
+                        if "attachment" not in content_disposition and content_type in ["text/plain", "text/html"]:
+                            body = part.get_payload(decode=True)
+                            email_body += safe_decode(body) + "\n"
                 else:
-                    # If the email is not multipart (only plain text), decode the body safely
                     body = msg.get_payload(decode=True)
-                    print(f"Body: {safe_decode(body)}")
-        
+                    email_body += safe_decode(body)
+
+                # Extract the activation link
+                activation_link = extract_activation_link(email_body)
+
+                if activation_link:
+                    print("Activation Link:", activation_link)
+
+                    #open the activation link
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch(headless=False)
+                        page = browser.new_page()
+                        page.goto(activation_link)
+
+                        #wait for 5 seconds to ensure page loads correctly
+                        time.sleep(5)
+
+                        #close the browser
+                        browser.close()
+
+
+                else:
+                    print("No activation link found in the email.")
+
         print("-" * 50)
 
 except Exception as e:
