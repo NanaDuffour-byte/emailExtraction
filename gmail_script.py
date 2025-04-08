@@ -27,7 +27,7 @@ def extract_activation_link(text):
 
 # Gmail credentials
 username = "mdtester7@gmail.com"
-password = "anbd ycny svmt lsul"  
+password = "enac yjjw xota mizj"  
 
 # Gmail IMAP server
 server = "imap.gmail.com"
@@ -37,7 +37,7 @@ try:
     # logging in to Gmail
     mail.login(username, password)
     
-    # Select from inbox or spam
+    #Select from inbox or spam
     #mail.select("inbox")
     mail.select("[Gmail]/Spam")
 
@@ -53,12 +53,12 @@ try:
             if isinstance(response_part, tuple):
                 msg = email.message_from_bytes(response_part[1])
                 
-                # Decode the subject
+                #Decode the subject
                 subject, encoding = decode_header(msg["Subject"])[0]
                 if isinstance(subject, bytes):
                     subject = subject.decode(encoding if encoding else "utf-8")
                 
-                # Get the sender's email
+                #Get the sender's email
                 from_ = msg.get("From")
                 
                 print(f"Subject: {subject}")
@@ -66,13 +66,13 @@ try:
                 
                 email_body = ""
 
-                # Check if the email is multipart (i.e., has both plain text and HTML parts)
+                #Check if the email is multipart (i.e., has both plain text and HTML parts)
                 if msg.is_multipart():
                     for part in msg.walk():
                         content_type = part.get_content_type()
                         content_disposition = str(part.get("Content-Disposition"))
 
-                        # Extract text if it is not an attachment
+                        #Extract text if it is not an attachment
                         if "attachment" not in content_disposition and content_type in ["text/plain", "text/html"]:
                             body = part.get_payload(decode=True)
                             email_body += safe_decode(body) + "\n"
@@ -80,7 +80,7 @@ try:
                     body = msg.get_payload(decode=True)
                     email_body += safe_decode(body)
 
-                # Extract the activation link
+                #Extract the activation link
                 activation_link = extract_activation_link(email_body)
 
                 if activation_link:
@@ -91,11 +91,8 @@ try:
                         browser = p.chromium.launch(headless=False)
                         page = browser.new_page()
                         page.goto(activation_link)
-
-                        #wait for 5 seconds to ensure page loads correctly
                         time.sleep(5)
 
-                        #close the browser
                         browser.close()
 
 
